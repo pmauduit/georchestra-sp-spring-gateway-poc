@@ -1,0 +1,79 @@
+version: '3.1'
+
+services:
+  cas:
+    image: georchestra/cas:6.3-dev
+    volumes:
+      - ./config:/etc/georchestra
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.cas.tls=true"
+      - "traefik.http.routers.cas.rule=Host(`georchestra-127-0-1-1.traefik.me`) && PathPrefix(`/cas`)"
+
+
+  proxy:
+    # Build here: https://github.com/georchestra/georchestra/tree/spring_gateway/gateway
+    image: docker.io/georchestra/gateway:21.0-SNAPSHOT
+    ports: 
+      - 8080:8080
+    volumes:
+      - ./config:/etc/georchestra
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.proxy.tls=true"
+      - "traefik.http.routers.proxy.rule=Host(`georchestra-127-0-1-1.traefik.me`)"
+      - "traefik.http.middlewares.corsheader.headers.accesscontrolallowmethods=GET, HEAD, POST, PUT, DELETE, OPTIONS, PATCH"
+      - "traefik.http.middlewares.corsheader.headers.accesscontrolalloworiginlist=*"
+      - "traefik.http.middlewares.corsheader.headers.accesscontrolmaxage=1800"
+      - "traefik.http.middlewares.corsheader.headers.addvaryheader=true"
+      - "traefik.http.middlewares.corsheader.headers.accesscontrolallowcredentials=true"
+      - "traefik.http.routers.proxy.middlewares=corsheader@docker"
+
+
+
+  ldap:
+    image: georchestra/ldap:latest
+    environment:
+        - SLAPD_ORGANISATION=georchestra
+        - SLAPD_DOMAIN=georchestra.org
+        - SLAPD_PASSWORD=secret
+        - SLAPD_LOG_LEVEL=32768 # See https://www.openldap.org/doc/admin24/slapdconfig.html#loglevel%20%3Clevel%3E
+    volumes:
+      - ./resources/ldap/ldap_data:/var/lib/ldap
+      - ./resources/ldap/ldap_config:/etc/ldap
+    restart: always
+
+  header:
+    image: georchestra/header:latest
+    volumes:
+      - ./config:/etc/georchestra
+
+  # frontend stuff
+  traefik-me-certificate-downloader:
+    image: alpine
+    command: sh -c "cd /etc/ssl/traefik
+      && wget traefik.me/fullchain.pem -O traefik.me.crt
+      && wget traefik.me/privkey.pem -O traefik.me-key.pem"
+    volumes:
+      - ./resources/ssl:/etc/ssl/traefik
+
+  georchestra-127-0-1-1.traefik.me:
+    image: traefik:2.4
+    depends_on:
+      - traefik-me-certificate-downloader
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./resources/ssl:/etc/certs:ro
+      - ./resources/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./resources/traefik-config.yml:/etc/traefik/config.yml:ro
+    restart: always
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.tls=true"
+      - "traefik.http.routers.traefik.rule=Host(`georchestra-127-0-1-1.traefik.me`) && (PathPrefix(`/traefik`) || PathPrefix(`/api`))"
+      - "traefik.http.routers.traefik.service=api@internal"
+      - "traefik.http.routers.traefik.middlewares=traefik-strip"
+      - "traefik.http.middlewares.traefik-strip.stripprefix.prefixes=/traefik"

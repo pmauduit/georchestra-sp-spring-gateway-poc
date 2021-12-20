@@ -1,0 +1,88 @@
+georchestra:
+  gateway:
+    # configure target base URL's per service name. Replaces security-proxy's targets-mapping.properties
+    target-mappings:
+      analytics: http://analytics:8080/analytics/
+      atlas: http://atlas:8080/atlas/
+      console: http://console:8080/console/
+      extractorapp: http://extractorapp:8080/extractorapp/
+      geonetwork: http://geonetwork:8080/geonetwork/
+      geoserver: http://geoserver:8080/geoserver/
+      header: http://header:8080/header/
+      mapfishapp: http://mapfishapp:8080/mapfishapp/
+      geowebcache: http://geowebcache:8080/geowebcache/
+      mapstore: http://mapstore:8080/mapstore/
+      datafeeder: http://datafeeder:8080/datafeeder
+      import: http://import:80/
+
+spring:
+  cloud.gateway.routes:
+  - id: root
+    uri: ${georchestra.gateway.target-mappings.header}
+    predicates:
+    - Path=/
+    filters:
+    - RewritePath=/, /header
+  - id: header
+    uri: ${georchestra.gateway.target-mappings.header}
+    predicates:
+    - Path=/header,/header/**
+
+  - id: analytics
+    uri: ${georchestra.gateway.target-mappings.analytics}
+    predicates:
+    - Path=/analytics/**
+
+  - id: atlas
+    uri: ${georchestra.gateway.target-mappings.atlas}
+    predicates:
+    - Path=/atlas/**
+
+  - id: console
+    uri: ${georchestra.gateway.target-mappings.console}
+    predicates:
+    - Path=/console/**
+
+  - id: extractorapp
+    uri: ${georchestra.gateway.target-mappings.extractorapp}
+    predicates:
+    - Path=/extractorapp/**
+
+  - id: geonetwork
+    uri: ${georchestra.gateway.target-mappings.geonetwork}
+    predicates:
+    - Path=/geonetwork/**
+
+  - id: geoserver
+    uri: ${georchestra.gateway.target-mappings.geoserver}
+    predicates:
+    - Path=/geoserver/**
+
+  - id: mapfishapp
+    uri: ${georchestra.gateway.target-mappings.mapfishapp}
+    predicates:
+    - Path=/mapfishapp/**
+
+  - id: geowebcache
+    uri: ${georchestra.gateway.target-mappings.geowebcache}
+    predicates:
+    - Path=/geowebcache/**
+
+  - id: mapstore
+    uri: ${georchestra.gateway.target-mappings.mapstore}
+    predicates:
+    - Path=/mapstore/**
+
+  - id: datafeeder
+    uri: ${georchestra.gateway.target-mappings.datafeeder}
+    predicates:
+    - Path=/datafeeder/**
+
+  - id: import
+    uri: ${georchestra.gateway.target-mappings.import}
+    predicates:
+    - Path=/import/**
+
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
